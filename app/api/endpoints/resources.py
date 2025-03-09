@@ -3,8 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.api.schemas.resource import ProducedResource, ConsumedResource
-from app.services.consumer import get_consumer
-from app.services.producer import get_producer
+from app.services.prosumer import get_consumer, get_producer
 from app.services.resource import get_resource
 
 logger = logging.getLogger(__name__)
