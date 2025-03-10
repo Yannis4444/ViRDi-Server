@@ -1,0 +1,16 @@
+producers:
+  - name: Satisfactory
+    type: rest
+  - name: Factorio
+    type: rest
+  - name: Minecraft
+    type: rest
+
+consumers:
+  - name: Satisfactory
+    type: rest
+  - name: Factorio
+    type: rest
+  - name: SomethingElse
+    id: something
+    type: rest
