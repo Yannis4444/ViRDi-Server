@@ -26,6 +26,7 @@ class Resource:
         self._buffer_lock = asyncio.Lock()
 
         self._consumers: set[Consumer] = set()
+        self._consumer_lock = asyncio.Lock()
 
     def __repr__(self) -> str:
         return f"Resource(resource_id={self._id}, buffer_limit={self._buffer_limit}, buffer={self._buffer})"
@@ -43,7 +44,7 @@ class Resource:
 
         return self._id
 
-    def add_consumer(self, consumer: 'Consumer'):
+    async def add_consumer(self, consumer: 'Consumer'):
         """
         Adds the given consumer to be considered when producing
 
@@ -52,7 +53,8 @@ class Resource:
 
         # TODO: option to remove
 
-        self._consumers.add(consumer)
+        async with self._consumer_lock:
+            self._consumers.add(consumer)
 
     async def produce(self, amount: int) -> int:
         """
@@ -64,35 +66,51 @@ class Resource:
         :return: The amount that was actually stored.
         """
 
+        remaining_amount = amount
+
+        changed_producers: set[Producer] = set()
+
         # first put the produced amount into the buffers of the consumers
-        consumers = list(self._consumers)
-        while amount > 0 and consumers:
-            amount_per_consumer = amount // len(_consumers)
-            n_consumers_additional_resource = amount % len(_consumers)
-            next_consumers = []
+        async with self._consumer_lock:
+            # get locks off all consumers
+            await asyncio.gather(*(consumer.buffer_lock.acquire() for consumer in self._consumers))
+            try:
+                distributable = list(self._consumers)
+                while remaining_amount > 0 and distributable:
+                    amount_per_consumer = remaining_amount // len(_consumers)
+                    n_consumers_additional_resource = remaining_amount % len(_consumers)
+                    next_distributable = []
 
-            for i, consumer in enumerate(consumers):
-                # TODO: rotate distribution of remainder - not just always the first ones
-                consumer_amount = amount_per_consumer + (1 if i < n_consumers_additional_resource else 0)
-                actual_amount = await consumer.add_to_buffer(consumer_amount)
+                    for i, consumer in enumerate(distributable):
+                        # TODO: rotate distribution of remainder - not just always the first ones
+                        consumer_amount = amount_per_consumer + (1 if i < n_consumers_additional_resource else 0)
+                        actual_amount = await consumer.add_to_buffer(consumer_amount, lock=False)
 
-                if actual_amount == consumer_amount:
-                    # The consumer might still take more of the resource if anything remains
-                    next_consumers.append(consumer)
+                        if actual_amount > 0:
+                            changed_producers.add(consumer)
 
-                amount -= actual_amount
+                        if actual_amount == consumer_amount:
+                            # The consumer might still take more of the resource if anything remains
+                            next_distributable.append(consumer)
 
-            consumers = next_consumers
+                        remaining_amount -= actual_amount
 
-        if amount > 0:
+                    distributable = next_distributable
+            finally:
+                for consumer in self._consumers:
+                    consumer.buffer_lock.release()
+
+        # notify consumers about production
+        for consumer in changed_producers:
+            asyncio.create_task(consumer.notify())
+
+        if remaining_amount > 0:
             async with self._buffer_lock:
-                actual_amount = min(amount, self._buffer_limit - self._buffer)
+                actual_amount = min(remaining_amount, self._buffer_limit - self._buffer)
                 self._buffer += actual_amount
+                remaining_amount -= actual_amount
 
-        logging.info(repr(self))
-        logging.info(self._consumers)
-
-        return actual_amount
+        return amount - remaining_amount
 
     async def consume(self, amount: int) -> int:
         """
@@ -216,8 +234,6 @@ class Consumer(Prosumer):
 
         super().__init__(consumer_id, resource)
 
-        resource.add_consumer(self)
-
         self._buffer_limit = buffer_limit
         self._buffer = buffer
         self._buffer_lock = asyncio.Lock()
@@ -228,17 +244,35 @@ class Consumer(Prosumer):
     def __str__(self):
         return self._id
 
-    async def add_to_buffer(self, amount: int) -> int:
+    @property
+    def buffer_limit(self) -> int:
+        return self._buffer_limit
+
+    @property
+    def buffer(self) -> int:
+        return self.buffer
+
+    @property
+    def buffer_lock(self) -> asyncio.Lock:
+        return self._buffer_lock
+
+    async def add_to_buffer(self, amount: int, lock=True) -> int:
         """
         Adds the given amount to the local consumer buffer
 
         When the storage limit is reached, the return value will be less than the set amount.
 
         :param amount: The amount to add
+        :param lock: If the buffer_lock should be used to lock the value
         :return: The amount actually added
         """
 
-        async with self._buffer_lock:
+        if lock:
+            async with self._buffer_lock:
+                actual_amount = min(amount, self._buffer_limit - self._buffer)
+                self._buffer += actual_amount
+                return actual_amount
+        else:
             actual_amount = min(amount, self._buffer_limit - self._buffer)
             self._buffer += actual_amount
             return actual_amount
@@ -267,6 +301,14 @@ class Consumer(Prosumer):
 
         return actual_amount
 
+    async def notify(self):
+        """
+        Notifies the consumer of any changes made to the buffer.
+        Should be used to send info to the actual consumer via some communication mechanism.
+        """
+
+        logger.info(f"{self} notified - buffer: {self._buffer}/{self._buffer_limit}")
+
 
 _consumer_creation_lock = asyncio.Lock()
 _consumers: dict[str, Consumer] = {}
@@ -283,10 +325,13 @@ async def get_consumer(consumer_id: str, resource_id: str) -> Consumer:
     """
 
     if consumer_id not in _consumers:
-        async with _consumer_creation_lock:
+        async with (_consumer_creation_lock):
             if consumer_id not in _consumers:
                 # TODO: actual buffer settings
-                _consumers[consumer_id] = Consumer(consumer_id, await get_resource(resource_id), 100)
+                resource = await get_resource(resource_id)
+                consumer = Consumer(consumer_id, resource, 100)
+                _consumers[consumer_id] = consumer
+                await resource.add_consumer(consumer)
 
     return _consumers.get(consumer_id)
 
