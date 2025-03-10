@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +76,15 @@ class Resource:
             # get locks off all consumers
             await asyncio.gather(*(consumer.buffer_lock.acquire() for consumer in self._consumers))
             try:
+                # random order to avoid favoring first consumers
                 distributable = list(self._consumers)
+                random.shuffle(distributable)
                 while remaining_amount > 0 and distributable:
                     amount_per_consumer = remaining_amount // len(_consumers)
                     n_consumers_additional_resource = remaining_amount % len(_consumers)
                     next_distributable = []
 
                     for i, consumer in enumerate(distributable):
-                        # TODO: rotate distribution of remainder - not just always the first ones
                         consumer_amount = amount_per_consumer + (1 if i < n_consumers_additional_resource else 0)
                         actual_amount = await consumer.add_to_buffer(consumer_amount, lock=False)
 
