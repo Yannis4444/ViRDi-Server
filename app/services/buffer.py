@@ -100,3 +100,15 @@ class Buffer:
             actual_amount = min(amount, self._amount)
             self._amount -= actual_amount
             return actual_amount
+
+    async def remove_all(self, lock=True) -> int:
+        """
+        Removes everything from the buffer.
+
+        If the buffer is already locked manually, lock can be set to False.
+
+        :param lock: If the amount should be locked during the operation
+        :return: The amount actually removed
+        """
+
+        return await self.remove(self.limit, lock)

@@ -2,6 +2,8 @@ import asyncio
 import logging
 import random
 
+import httpx
+
 from app.services.buffer import Buffer
 
 logger = logging.getLogger(__name__)
@@ -312,4 +314,4 @@ class Consumer:
         Should be used to send info to the actual consumer via some communication mechanism.
         """
 
-        logger.info(f"{self} notified - {self._buffer}")
+        logger.info(f"Notifying {self} - {self._buffer}")
