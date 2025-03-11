@@ -2,38 +2,38 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.schemas.resource import ProducedResource, ConsumedResource
-from app.services.prosumer import get_consumer, get_producer
+from app.api.schemas.resources import ResourceProduced, ResourceConsumed
+from app.services.prosumer import Consumer, Resource
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/produce", response_model=ProducedResource)
-async def produce(producer_id: str, resource_id: str, amount: int):
-    producer = await get_producer(producer_id, resource_id=resource_id)
+@router.post("/produce", response_model=ResourceProduced)
+async def produce(resource_id: str, amount: int):
+    resource = Resource.get(resource_id)
 
-    if producer is None:
-        logger.error(f"Producer '{producer_id}' not found")
-        raise HTTPException(status_code=404, detail="Producer not found")
+    if resource is None:
+        logger.error(f"Resource '{resource_id}' not found")
+        raise HTTPException(status_code=404, detail="Resource not found")
 
-    produced_amount = await producer.produce(amount)
+    produced_amount = await resource.add(amount)
 
-    return ProducedResource(
+    return ResourceProduced(
         amount=produced_amount,
     )
 
 
-@router.post("/consume", response_model=ConsumedResource)
-async def consume(consumer_id: str, resource_id: str, amount: int):
-    consumer = await get_consumer(consumer_id, resource_id)
+@router.post("/consume", response_model=ResourceConsumed)
+async def consume(consumer_id: str, amount: int):
+    consumer = Consumer.get(consumer_id)
 
     if consumer is None:
         logger.error(f"Consumer '{consumer_id}' not found")
         raise HTTPException(status_code=404, detail="Consumer not found")
 
-    consumed_amount = await consumer.consume(amount)
+    consumed_amount = await consumer.remove(amount)
 
-    return ProducedResource(
+    return ResourceProduced(
         amount=consumed_amount,
     )
