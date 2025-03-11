@@ -2,8 +2,6 @@ import asyncio
 import logging
 import random
 
-import httpx
-
 from app.services.buffer import Buffer
 
 logger = logging.getLogger(__name__)
