@@ -1,1 +1,1 @@
-# Game-Resource-Distributor
+# Virtual Resource Distributor
