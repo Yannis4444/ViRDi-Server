@@ -26,6 +26,7 @@ async def produce(resource_id: str, amount: int):
 
 @router.post("/consume", response_model=ResourceConsumed)
 async def consume(consumer_id: str, amount: int):
+    # TODO: only allow for consumers without notifier
     consumer = Consumer.get(consumer_id)
 
     if consumer is None:

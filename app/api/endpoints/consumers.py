@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.api.schemas.consumers import ConsumerCreated
+from app.services.notify import get_notifier_class
 from app.services.prosumer import Consumer, Resource
 
 logger = logging.getLogger(__name__)
@@ -10,7 +11,7 @@ router = APIRouter()
 
 
 @router.post("/create", response_model=ConsumerCreated)
-async def produce(consumer_id: str, resource_id: str):
+async def produce(consumer_id: str, resource_id: str, notifier_type: str, notifier_config: dict | None = None):
     consumer = Consumer.get(consumer_id)
 
     if consumer is not None:
@@ -23,8 +24,16 @@ async def produce(consumer_id: str, resource_id: str):
         logger.error(f"Resource '{resource_id}' not found")
         raise HTTPException(status_code=404, detail="Resource not found")
 
+    notifier_class = get_notifier_class(notifier_type)
+
+    if notifier_class is None:
+        logger.error(f"Notifier type '{notifier_type}' does not exist")
+        raise HTTPException(status_code=404, detail="Notifier type does not exist")
+
+    notifier = notifier_class(notifier_config)
+
     # TODO: buffer limit should come from some config
-    consumer = await Consumer.create(consumer_id, resource, 100)
+    consumer = await Consumer.create(consumer_id, resource, 100, notifier=notifier)
 
     return ConsumerCreated(
         id=consumer_id,

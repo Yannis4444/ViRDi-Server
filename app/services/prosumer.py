@@ -3,6 +3,7 @@ import logging
 import random
 
 from app.services.buffer import Buffer
+from app.services.notify import Notifier
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +220,7 @@ class Consumer:
         return cls._consumers.get(consumer_id)
 
     @classmethod
-    async def create(cls, consumer_id, resource: Resource, buffer_limit: int, initial_buffer_amount: int = 0) -> 'Consumer':
+    async def create(cls, consumer_id, resource: Resource, buffer_limit: int, initial_buffer_amount: int = 0, notifier: Notifier | None = None) -> 'Consumer':
         """
         Creates the consumer with the given id and adds it to the resource.
         Should always be used to create any consumer.
@@ -230,18 +231,19 @@ class Consumer:
         :param resource: The resource this consumer consumes.
         :param buffer_limit: The maximum amount of the resource that can be stored at once.
         :param initial_buffer_amount: The buffer amount to start with.
+        :param notifier: A notifier to be used when new resources become available.
         :return: The new consumer
         """
 
-        logging.info(f"Creating Consumer '{consumer_id}' for '{resource}'")
+        logging.info(f"Creating Consumer '{consumer_id}' for '{resource}' with {notifier if notifier else 'no'} notifier")
 
         async with cls._consumer_creation_lock:
-            consumer = cls(consumer_id, resource, buffer_limit, initial_buffer_amount)
+            consumer = cls(consumer_id, resource, buffer_limit, initial_buffer_amount=initial_buffer_amount, notifier=notifier)
             await resource.add_consumer(consumer)
             cls._consumers[consumer_id] = consumer
             return consumer
 
-    def __init__(self, consumer_id: str, resource: Resource, buffer_limit: int, initial_buffer_amount: int = 0):
+    def __init__(self, consumer_id: str, resource: Resource, buffer_limit: int, initial_buffer_amount: int = 0, notifier: Notifier | None = None):
         """
         Creates a new consumer
 
@@ -252,12 +254,15 @@ class Consumer:
         :param resource: The resource this consumer consumes.
         :param buffer_limit: The maximum amount of the resource that can be stored at once.
         :param initial_buffer_amount: The buffer amount to start with.
+        :param notifier: A notifier to be used when new resources become available.
         """
 
         self._id = consumer_id
         self._resource = resource
 
         self._buffer = Buffer(buffer_limit, initial_buffer_amount)
+
+        self._notifier = notifier
 
     def __repr__(self):
         return f"Consumer(id={self._id}, resource={self._resource}, buffer={self._buffer})"
@@ -308,8 +313,23 @@ class Consumer:
 
     async def notify(self):
         """
-        Notifies the consumer of any changes made to the buffer.
-        Should be used to send info to the actual consumer via some communication mechanism.
+        Notifies the actual client for the consumer of any changes made to the buffer.
+
+        Only this method will be albe to remove from the buffer if a notifier is set
+        as the manual polling is disabled then.
+        Therefore, any amount currently in the buffer can be promised to the consumer
+        without needing to take it from the buffer directly.
+        It can then later be removed from the buffer as long as the notifier is locked
+        ensuring only one notify runs simultaneously.
+
+        If no notifier is set for the consumer, nothing happens.
+        In this case, the consumer can be manually consumed using the REST API
         """
 
-        logger.info(f"Notifying {self} - {self._buffer}")
+        if self._notifier is not None:
+            async with self._notifier:
+                if self._buffer.amount >= 0:
+                    taken_amount = await self._notifier.notify(self._buffer.amount)
+                    actual_amount = await self.remove(taken_amount)
+                    if actual_amount < taken_amount:
+                        logger.warning(f"Notifier for {self} removed more than was available on the buffer: {actual_amount} < {taken_amount}")
