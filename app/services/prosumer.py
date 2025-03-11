@@ -91,7 +91,9 @@ class Resource:
 
     async def add_consumer(self, consumer: 'Consumer'):
         """
-        Adds the given consumer to be considered when producing
+        Adds the given consumer to be considered when producing.
+
+        Also fills the consumers buffer if anything is available in the resource buffer.
 
         :param consumer: The consumer to add
         """
@@ -100,6 +102,13 @@ class Resource:
 
         async with self._consumer_lock:
             self._consumers.add(consumer)
+
+        # give it whatever is in the global resource buffer
+        if self._buffer.amount > 0:
+            async with self._buffer.lock:
+                added = await consumer.add(self._buffer.amount)
+                await self._buffer.remove(added, lock=False)
+            asyncio.create_task(consumer.notify())
 
     async def add(self, amount) -> int:
         """
