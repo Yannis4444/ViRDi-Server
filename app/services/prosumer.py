@@ -290,6 +290,16 @@ class Consumer:
 
         return self._resource
 
+    @property
+    def notifier(self) -> Notifier | None:
+        """
+        The internally used notifier
+
+        :return: The notifier or None if none is set.
+        """
+
+        return self._notifier
+
     async def add(self, amount, lock=True) -> int:
         """
         Adds the given amount to the internal buffer.

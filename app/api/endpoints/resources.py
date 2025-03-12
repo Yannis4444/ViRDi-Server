@@ -48,6 +48,10 @@ async def consume(consumer_id: str, amount: int):
         logger.error(f"Consumer '{consumer_id}' not found")
         raise HTTPException(status_code=404, detail="Consumer not found")
 
+    if consumer.notifier is not None:
+        logger.error(f"Consumer '{consumer_id}' with defined notifier cannot be consumed manually")
+        raise HTTPException(status_code=404, detail="Consumers with defined notifier cannot be consumed manually")
+
     consumed_amount = await consumer.remove(amount)
 
     return ResourceProduced(
