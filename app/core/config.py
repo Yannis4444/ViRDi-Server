@@ -3,6 +3,7 @@ from pathlib import Path
 import yaml
 
 from app.services.prosumer import Resource
+from app.services.resource_mapping import ResourceMapping
 
 
 def _deep_merge(dict1: dict[str, any], dict2: dict[str, any]) -> dict[str, any]:
@@ -33,7 +34,7 @@ def _read_config(path: str) -> dict:
 
     combined_config = {}
 
-    for file in Path(path).glob("*.yaml"):
+    for file in Path(path).rglob("*.y*ml"):
         with open(file, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
             combined_config = _deep_merge(combined_config, data)
@@ -45,3 +46,7 @@ def load_config(path: str):
 
     for resource in config.get("resources", []):
         Resource.create_from_config(resource)
+
+    for game_id, game_config in config.get("games", {}).items():
+        for resource_id, mapping in game_config.get("resource_mappings", {}).items():
+            ResourceMapping.create_from_config(game_id, resource_id, mapping)

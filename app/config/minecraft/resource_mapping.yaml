@@ -1,0 +1,11 @@
+games:
+  minecraft:
+    resource_mappings:
+      iron:
+        factor: 10
+        game_ids:
+          - minecraft:iron_ingot
+          - minecraft:iron_block:
+              factor: 9
+          - minecraft:iron_nugget:
+              divisor: 9

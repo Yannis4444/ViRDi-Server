@@ -49,7 +49,7 @@ class Resource:
         if buffer_limit is None:
             raise ValueError(f"Found resource without buffer_limit: {config}")
 
-        logging.info(f"Creating Resource '{resource_id}'")
+        logger.info(f"Creating Resource '{resource_id}'")
 
         resource = cls(resource_id, buffer_limit)
         cls._resources[resource_id] = resource
@@ -235,7 +235,7 @@ class Consumer:
         :return: The new consumer
         """
 
-        logging.info(f"Creating Consumer '{consumer_id}' for '{resource}' with {notifier if notifier else 'no notifier'}")
+        logger.info(f"Creating Consumer '{consumer_id}' for '{resource}' with {notifier if notifier else 'no notifier'}")
 
         async with cls._consumer_creation_lock:
             consumer = cls(consumer_id, resource, buffer_limit, initial_buffer_amount=initial_buffer_amount, notifier=notifier)
