@@ -2,14 +2,14 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.schemas.resources import ResourceProduced, ResourceConsumed
+from app.api.schemas.resources import ResourceProduced, ResourceConsumed, ProduceResource
 from app.services.prosumer import Consumer, Resource
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/produce", response_model=ResourceProduced)
+@router.get("/produce", response_model=ResourceProduced)
 async def produce(resource_id: str, amount: int):
     resource = Resource.get(resource_id)
 
@@ -18,6 +18,21 @@ async def produce(resource_id: str, amount: int):
         raise HTTPException(status_code=404, detail="Resource not found")
 
     produced_amount = await resource.add(amount)
+
+    return ResourceProduced(
+        amount=produced_amount,
+    )
+
+
+@router.post("/produce", response_model=ResourceProduced)
+async def produce(produce: ProduceResource):
+    resource = Resource.get(produce.resource_id)
+
+    if resource is None:
+        logger.error(f"Resource '{produce.resource_id}' not found")
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    produced_amount = await resource.add(produce.amount)
 
     return ResourceProduced(
         amount=produced_amount,
