@@ -235,7 +235,7 @@ class Consumer:
         :return: The new consumer
         """
 
-        logging.info(f"Creating Consumer '{consumer_id}' for '{resource}' with {notifier if notifier else 'no'} notifier")
+        logging.info(f"Creating Consumer '{consumer_id}' for '{resource}' with {notifier if notifier else 'no notifier'}")
 
         async with cls._consumer_creation_lock:
             consumer = cls(consumer_id, resource, buffer_limit, initial_buffer_amount=initial_buffer_amount, notifier=notifier)
@@ -271,9 +271,19 @@ class Consumer:
         return self._id
 
     @property
+    def id(self) -> str:
+        """
+        The identifier of the consumer
+
+        :return: The id
+        """
+
+        return self._id
+
+    @property
     def resource(self) -> Resource:
         """
-        The resource the prosumer is handling
+        The resource the consumer is handling
 
         :return: The resource
         """
@@ -328,8 +338,8 @@ class Consumer:
 
         if self._notifier is not None:
             async with self._notifier:
-                if self._buffer.amount >= 0:
-                    taken_amount = await self._notifier.notify(self._buffer.amount)
+                if self._buffer.amount > 0:
+                    taken_amount = await self._notifier.notify(self._buffer.amount, self._id)
                     actual_amount = await self.remove(taken_amount)
                     if actual_amount < taken_amount:
                         logger.warning(f"Notifier for {self} removed more than was available on the buffer: {actual_amount} < {taken_amount}")
