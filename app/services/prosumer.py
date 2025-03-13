@@ -205,7 +205,7 @@ class Consumer:
         if remaining and remainder_buffer is not None:
             remaining -= await remainder_buffer.add(remaining)
 
-        return remaining, affected_consumers
+        return amount - remaining, affected_consumers
 
     @classmethod
     def get(cls, consumer_id) -> 'Consumer | None':
