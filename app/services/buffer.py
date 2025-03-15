@@ -1,5 +1,4 @@
 import asyncio
-import random
 
 
 class Buffer:
@@ -57,27 +56,27 @@ class Buffer:
 
         return self._lock
 
-    async def add(self, amount, lock=True) -> int:
+    async def add(self, amount, lock=True) -> bool:
         """
         Adds the given amount to the buffer.
-        If the buffer is completely filled, the return value will be less than the set amount.
+
+        Once the buffer is full, the full amount will still be added,
+        but False will be returned to signal that nothing more should be added.
 
         If the buffer is already locked manually, lock can be set to False.
 
         :param amount: The amount to add
         :param lock: If the amount should be locked during the operation
-        :return: The amount actually added
+        :return: True if the buffer is not yet fully filled, False otherwise
         """
 
         if lock:
             async with self._lock:
-                actual_amount = min(amount, self._limit - self._amount)
-                self._amount += actual_amount
-                return actual_amount
+                self._amount += amount
+                return self._amount <= self._limit
         else:
-            actual_amount = min(amount, self._limit - self._amount)
-            self._amount += actual_amount
-            return actual_amount
+            self._amount += amount
+            return self._amount <= self._limit
 
     async def remove(self, amount, lock=True) -> int:
         """
@@ -111,4 +110,8 @@ class Buffer:
         :return: The amount actually removed
         """
 
-        return await self.remove(self.limit, lock)
+        if lock:
+            with self._lock:
+                return await self.remove(self.amount, lock=False)
+        else:
+            return await self.remove(self.amount, lock=False)
