@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+service Virdi {
+  // Client offers a resource
+  // Server registers the client as a possible producer of the resource
+  // Sent by the client when first creating a producer for a resource / connecting to the server
+  // The server sends a message whenever it needs the resource
+  rpc OfferProduction (ProductionOffer) returns (stream ProductionRequest);
+
+  // Client streams a resource until the server cancels
+  // The server requests this using the ProductionRequest stream in OfferProduction
+  rpc Produce (stream ResourceProduction) returns (ProductionResponse);
+}
+
+message ProductionOffer {
+  string resource_id = 1;
+}
+
+message ProductionRequest {
+}
+
+message ResourceProduction {
+  oneof payload {
+    ResourceProductionInitInfo init_info = 1;
+    uint32 amount = 2;
+  }
+}
+
+message ResourceProductionInitInfo {
+  string resource_id = 1;
+}
+
+message ProductionResponse {
+}

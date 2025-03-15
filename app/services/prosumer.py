@@ -111,7 +111,7 @@ class Resource:
                 await self._buffer.remove(added, lock=False)
             asyncio.create_task(consumer.notify())
 
-    async def add(self, amount) -> int:
+    async def add(self, amount) -> bool:
         """
         First tries to distribute the given amount to the buffers off registered consumers.
         Adds the remaining amount to the internal buffer.
@@ -120,7 +120,7 @@ class Resource:
         If the buffer is already locked manually, lock can be set to False.
 
         :param amount: The amount to add
-        :return: The amount actually added
+        :return: True as long as ViRDi still needs the resource
         """
 
         distributed_amount, affected_consumers = await Consumer.distribute(amount, list(self._consumers), self._buffer)
@@ -220,7 +220,7 @@ class Consumer:
         return cls._consumers.get(consumer_id)
 
     @classmethod
-    async def create(cls, consumer_id, resource: Resource, buffer_limit: int, initial_buffer_amount: int = 0, notifier: Notifier | None = None) -> 'Consumer':
+    async def create(cls, consumer_id, resource: Resource, buffer_limit: int = 100, initial_buffer_amount: int = 0, notifier: Notifier | None = None) -> 'Consumer':
         """
         Creates the consumer with the given id and adds it to the resource.
         Should always be used to create any consumer.

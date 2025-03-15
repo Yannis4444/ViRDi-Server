@@ -2,3 +2,6 @@ fastapi==0.115.11
 pyyaml==6.0.2
 uvicorn==0.34.0
 httpx==0.28.1
+grpcio==1.71.0
+grpcio-tools==1.71.0
+grpcio-status==1.71.0

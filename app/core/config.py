@@ -2,6 +2,7 @@ from pathlib import Path
 
 import yaml
 
+from app.api.endpoints.resources import logger
 from app.services.prosumer import Resource
 from app.services.resource_mapping import ResourceMapping
 
@@ -31,6 +32,8 @@ def _read_config(path: str) -> dict:
 
     :returns: The combined config from all files as one json
     """
+
+    logger.info(f"Reading Config in '{path}'")
 
     combined_config = {}
 
