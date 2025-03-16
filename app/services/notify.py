@@ -178,7 +178,7 @@ class EventNotifier(Notifier):
 
         self._event: asyncio.Event = config.get("event")
 
-    async def notify(self, amount: int, consumer_id: str):
+    def notify(self, amount: int, consumer_id: str):
         """
         Sets the internal event to notify whatever is waiting for the event
 

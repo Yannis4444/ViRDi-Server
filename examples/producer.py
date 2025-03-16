@@ -11,8 +11,8 @@ import app.grpc_service.proto.virdi_pb2_grpc as virdi_pb2_grpc
 def get_args():
     """Parses command-line arguments."""
     parser = argparse.ArgumentParser(description="gRPC Producer Client for ViRDi")
-    parser.add_argument("--client-id", type=str, default=str(uuid.uuid4()),
-                        help="Optional client ID. Defaults to a random UUID.")
+    parser.add_argument("--client-id", type=str, default=str(uuid.uuid4())[:8],
+                        help="Optional client ID. Defaults to a random string.")
     parser.add_argument("--resource-id", type=str, default="iron",
                         help="Resource ID to produce.")
     return parser.parse_args()

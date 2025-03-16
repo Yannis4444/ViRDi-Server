@@ -121,7 +121,7 @@ class Resource:
             async with self._buffer.lock:
                 await consumer.add(self._buffer.amount)
                 await self._buffer.remove(consumer.buffer.amount, lock=False)
-            asyncio.create_task(consumer.notify())
+            await consumer.notify()
 
     async def add(self, amount) -> bool:
         """
@@ -139,8 +139,7 @@ class Resource:
         keep_coming, affected_consumers = await Consumer.distribute(amount, list(self._consumers), self._buffer)
 
         for consumer in affected_consumers:
-            # TODO: just notify, no create task, remove deprecated notifiers
-            asyncio.create_task(consumer.notify())
+            await consumer.notify()
 
         return keep_coming
 
@@ -417,13 +416,24 @@ class Consumer:
 
         If no notifier is set for the consumer, nothing happens.
         In this case, the consumer can be manually consumed using the REST API
+
+        If notify is a coroutine, a new task will be created.
         """
 
-        if self._notifier is not None:
+        async def f():
             async with self._notifier:
                 if self._buffer.amount > 0:
-                    taken_amount = await self._notifier.notify(self._buffer.amount, self._id)
+                    if asyncio.iscoroutinefunction(self._notifier.notify):
+                        taken_amount = await self._notifier.notify(self._buffer.amount, self._id)
+                    else:
+                        taken_amount = self._notifier.notify(self._buffer.amount, self._id)
                     if taken_amount is not None:
                         actual_amount = await self.remove(taken_amount)
                         if actual_amount < taken_amount:
                             logger.warning(f"Notifier for {self} removed more than was available on the buffer: {actual_amount} < {taken_amount}")
+
+        if self._notifier is not None:
+            if asyncio.iscoroutinefunction(self._notifier.notify):
+                asyncio.create_task(f())
+            else:
+                await f()

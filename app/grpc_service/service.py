@@ -87,7 +87,6 @@ class MyServiceServicer(pb2_grpc.VirdiServicer):
 
         async for request in request_iterator:
             amount = request.amount
-            logger.info(f"Client {client} sent {amount} {resource}")
 
             if not await client.handle_resource_production(resource, amount):
                 # buffer filled
