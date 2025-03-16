@@ -124,6 +124,5 @@ class Client:
         :param consumer_id: The id of the consumer
         """
 
+        await self._consumers[consumer_id].delete()
         del self._consumers[consumer_id]
-
-        # TODO: destroy the consumer

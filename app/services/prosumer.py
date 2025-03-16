@@ -111,8 +111,6 @@ class Resource:
         :param consumer: The consumer to add
         """
 
-        # TODO: option to remove
-
         async with self._consumer_lock:
             self._consumers.add(consumer)
 
@@ -122,6 +120,16 @@ class Resource:
                 await consumer.add(self._buffer.amount)
                 await self._buffer.remove(consumer.buffer.amount, lock=False)
             await consumer.notify()
+
+    async def remove_consumer(self, consumer: 'Consumer'):
+        """
+        Removes the given consumer.
+
+        :param consumer: The consumer to remove
+        """
+
+        async with self._consumer_lock:
+            self._consumers.discard(consumer)
 
     async def add(self, amount) -> bool:
         """
@@ -135,7 +143,6 @@ class Resource:
         :return: True as long as ViRDi still needs the resource
         """
 
-        # TODO: rework distribute for new return logic
         keep_coming, affected_consumers = await Consumer.distribute(amount, list(self._consumers), self._buffer)
 
         for consumer in affected_consumers:
@@ -282,7 +289,7 @@ class Consumer:
 
         # TODO: use max rate
 
-        logger.info(f"Creating Consumer '{consumer_id}' for '{resource}' with {notifier if notifier else 'no notifier'}")
+        logger.info(f"Creating consumer '{consumer_id}' for {resource} with {notifier if notifier else 'no notifier'}")
 
         async with cls._consumer_creation_lock:
             consumer = cls(consumer_id, resource, buffer_limit, initial_buffer_amount=initial_buffer_amount, notifier=notifier)
@@ -310,6 +317,17 @@ class Consumer:
         self._buffer = Buffer(buffer_limit, initial_buffer_amount)
 
         self._notifier = notifier
+
+    async def delete(self):
+        """
+        Removes the consumer, puts remaining buffer into resource buffer and deletes references
+        """
+
+        logger.info(f"Deleting consumer '{self}' for {self.resource}")
+
+        await self.resource.remove_consumer(self)
+
+        await self.resource.add(await self.resource.buffer.remove_all())
 
     def __repr__(self):
         return f"Consumer(id={self._id}, resource={self._resource}, buffer={self._buffer})"
