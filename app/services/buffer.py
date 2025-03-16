@@ -115,3 +115,12 @@ class Buffer:
                 return await self.remove(self.amount, lock=False)
         else:
             return await self.remove(self.amount, lock=False)
+
+    def is_full(self) -> bool:
+        """
+        Checks if the buffer is full.
+
+        :return: True if the buffer is full
+        """
+
+        return self._amount >= self._limit

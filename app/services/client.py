@@ -1,10 +1,9 @@
+import asyncio
 import logging
 
 import grpc
 import uuid
-from typing import AsyncIterator, Dict
 
-from app.generated import virdi_pb2, virdi_pb2_grpc
 from app.services.prosumer import Consumer, Resource
 
 logger = logging.getLogger(__name__)
@@ -15,17 +14,38 @@ class Client:
     An instance of a game server/instance
     """
 
-    def __init__(self, grpc_context: grpc.aio.ServicerContext):
+    _clients: dict[str, 'Client'] = {}
+    _client_creation_lock = asyncio.Lock()
+
+    @classmethod
+    async def get(cls, client_id: str) -> 'Client':
         """
-        Create a new client
+        Get the client with the given id.
+        If the client does not exist yet, one will be created.
 
-        :param grpc_context: The gRPC context of the client
+        Should always be used to get a client
+
+        :param client_id: The client id
+        :return: The client
         """
 
-        self._id = str(uuid.uuid4())
-        self._grpc_context = grpc_context
+        async with cls._client_creation_lock:
+            if client_id not in cls._clients:
+                cls._clients[client_id] = Client(client_id)
+            return cls._clients[client_id]
 
-        logger.info(f"Creating client {self._id}")
+    def __init__(self, client_id: str):
+        """
+        Create a new client.
+
+        Do not use directly, use Client.get() instead.
+
+        :param client_id: An identifier for the client
+        """
+
+        logger.info(f"New client {client_id}")
+
+        self._id = client_id
 
         self._consumers: dict[str, Consumer] = {}
 
@@ -47,22 +67,16 @@ class Client:
 
     async def handle_resource_production(
             self,
-            resource_id: str,
+            resource: Resource,
             amount: int
     ) -> bool:
         """
         Handles production of the given resource
 
-        :param resource_id: The id of the resource
+        :param resource: The resource being produced
         :param amount: The amount produced
         :returns: True as long as ViRDi still needs the resource
         """
-
-        resource = Resource.get(resource_id)
-
-        if resource is None:
-            logger.error(f"Resource {resource_id} not found for client {self}")
-            raise ValueError(f"Resource {resource_id} not found")
 
         return await resource.add(amount)
 

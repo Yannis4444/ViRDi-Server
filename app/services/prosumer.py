@@ -74,6 +74,8 @@ class Resource:
         self._consumers: set[Consumer] = set()
         self._consumer_lock = asyncio.Lock()
 
+        self._request_events: set[asyncio.Event] = set()
+
     def __repr__(self) -> str:
         return f"Resource(resource_id={self._id}, buffer={self._buffer})"
 
@@ -142,7 +144,34 @@ class Resource:
         :return: The amount actually removed
         """
 
-        return await self._buffer.remove(amount, lock)
+        full_before = self._buffer.is_full()
+
+        actual_amount = await self._buffer.remove(amount, lock)
+
+        if full_before and not self._buffer.is_full():
+            for event in self._request_events:
+                event.set()
+
+        return actual_amount
+
+    def add_request_event(self, event: asyncio.Event):
+        """
+        Adds an event the resource can use to signal that the resources is needed.
+        Whenever the buffer changes from full to no longer full, all are set to signal to the producers.
+        If the buffer is not full when the event is added, it is set directly.
+        """
+
+        self._request_events.add(event)
+
+        if not self._buffer.is_full():
+            event.set()
+
+    def remove_request_event(self, event: asyncio.Event):
+        """
+        Removes a previously added event for requesting resources.
+        """
+
+        self._request_events.discard(event)
 
 
 class Consumer:
