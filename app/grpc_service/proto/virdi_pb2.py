@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0bvirdi.proto\"&\n\x0fProductionOffer\x12\x13\n\x0bresource_id\x18\x01 \x01(\t\"\x13\n\x11ProductionRequest\"c\n\x12ResourceProduction\x12\x30\n\tinit_info\x18\x01 \x01(\x0b\x32\x1b.ResourceProductionInitInfoH\x00\x12\x10\n\x06\x61mount\x18\x02 \x01(\rH\x00\x42\t\n\x07payload\"1\n\x1aResourceProductionInitInfo\x12\x13\n\x0bresource_id\x18\x01 \x01(\t\"\x14\n\x12ProductionResponse\"P\n\x12\x43onsumptionRequest\x12\x13\n\x0b\x63onsumer_id\x18\x01 \x01(\t\x12\x13\n\x0bresource_id\x18\x02 \x01(\t\x12\x10\n\x08max_rate\x18\x03 \x01(\r\"%\n\x13ResourceConsumption\x12\x0e\n\x06\x61mount\x18\x02 \x01(\r\"2\n\x1bResourceConsumptionInitInfo\x12\x13\n\x0bresource_id\x18\x01 \x01(\t2\xb1\x01\n\x05Virdi\x12\x39\n\x0fOfferProduction\x12\x10.ProductionOffer\x1a\x12.ProductionRequest0\x01\x12\x35\n\x07Produce\x12\x13.ResourceProduction\x1a\x13.ProductionResponse(\x01\x12\x36\n\x07\x43onsume\x12\x13.ConsumptionRequest\x1a\x14.ResourceConsumption0\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0bvirdi.proto\"&\n\x0fProductionOffer\x12\x13\n\x0bresource_id\x18\x01 \x01(\t\"\x13\n\x11ProductionRequest\"c\n\x12ResourceProduction\x12\x30\n\tinit_info\x18\x01 \x01(\x0b\x32\x1b.ResourceProductionInitInfoH\x00\x12\x10\n\x06\x61mount\x18\x02 \x01(\rH\x00\x42\t\n\x07payload\"1\n\x1aResourceProductionInitInfo\x12\x13\n\x0bresource_id\x18\x01 \x01(\t\"\x14\n\x12ProductionResponse\"P\n\x12\x43onsumptionRequest\x12\x13\n\x0b\x63onsumer_id\x18\x01 \x01(\t\x12\x13\n\x0bresource_id\x18\x02 \x01(\t\x12\x10\n\x08max_rate\x18\x03 \x01(\r\"%\n\x13ResourceConsumption\x12\x0e\n\x06\x61mount\x18\x02 \x01(\r2\xb1\x01\n\x05Virdi\x12\x39\n\x0fOfferProduction\x12\x10.ProductionOffer\x1a\x12.ProductionRequest0\x01\x12\x35\n\x07Produce\x12\x13.ResourceProduction\x1a\x13.ProductionResponse(\x01\x12\x36\n\x07\x43onsume\x12\x13.ConsumptionRequest\x1a\x14.ResourceConsumption0\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -45,8 +45,6 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_CONSUMPTIONREQUEST']._serialized_end=330
   _globals['_RESOURCECONSUMPTION']._serialized_start=332
   _globals['_RESOURCECONSUMPTION']._serialized_end=369
-  _globals['_RESOURCECONSUMPTIONINITINFO']._serialized_start=371
-  _globals['_RESOURCECONSUMPTIONINITINFO']._serialized_end=421
-  _globals['_VIRDI']._serialized_start=424
-  _globals['_VIRDI']._serialized_end=601
+  _globals['_VIRDI']._serialized_start=372
+  _globals['_VIRDI']._serialized_end=549
 # @@protoc_insertion_point(module_scope)
