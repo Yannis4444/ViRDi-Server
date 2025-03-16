@@ -8,7 +8,7 @@ import app.grpc_service.proto.virdi_pb2 as pb2
 import app.grpc_service.proto.virdi_pb2_grpc as pb2_grpc
 from app.grpc_service.proto import virdi_pb2
 from app.services.client import Client
-from app.services.prosumer import Resource
+from app.services.prosumer import Resource, Consumer
 
 logger = logging.getLogger(__name__)
 
@@ -99,3 +99,48 @@ class MyServiceServicer(pb2_grpc.VirdiServicer):
             logger.info(f"Client {client} stopped sending {resource}")
 
         return virdi_pb2.ProductionResponse()
+
+    async def Consume(self, request: pb2.ConsumptionRequest, context: grpc.ServicerContext) -> AsyncIterator[pb2.ResourceConsumption]:
+        """
+        A client requests resources, the server sends them in a stream.
+        """
+
+        client = await get_client_from_context(context)
+        if client is None:
+            logging.error("Received consumption request with missing or unknown client id")
+            await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Client not found or not given")
+
+        max_rate = request.max_rate
+
+        resource = Resource.get(request.resource_id)
+        if resource is None:
+            logging.error(f"Received production from client {client} with unknown resource {request.resource_id}")
+            await context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Unknown resource")
+
+        event = asyncio.Event()
+        try:
+            consumer = await client.add_consumer(request.consumer_id, resource, max_rate, event)
+        except ValueError as e:
+            logging.error(f"Failed to add consumer for consumption request for {resource} from {client}: {e}")
+            await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Failed to add consumer: {e}")
+
+        logger.info(f"Starting sending {resource} to client {client} for consumer {consumer}")
+
+        # maybe there is already something available - set event initially
+        event.set()
+
+        try:
+            while True:
+                await event.wait()
+
+                # TODO: use max_rate here?
+                # TODO: how much to take?
+                amount = await consumer.remove_all()
+
+                if amount > 0:
+                    yield virdi_pb2.ResourceProduction(amount=amount)
+
+                event.clear()
+        finally:
+            logger.info(f"Stopping sending {resource} to client {client} for consumer {consumer}")
+            await client.remove_consumer(consumer.id)

@@ -50,15 +50,15 @@ class Notifier:
         """
         self._lock.release()
 
-    async def notify(self, amount: int, consumer_id: str) -> int:
+    async def notify(self, amount: int, consumer_id: str) -> int | None:
         """
         Abstract method that notifies the actual client for the consumer about new resources.
 
-        notify has to return the amount that was actually consumed which will be taken from the buffer once returned.
+        notify can return the amount that was actually consumed which will be taken from the buffer once returned.
 
         :param amount: The available amount.
         :param consumer_id: The id of the consumer.
-        :return: The amount actually consumed.
+        :return: The amount actually consumed or None.
         """
 
         raise NotImplementedError("notify not implemented")
@@ -87,6 +87,7 @@ class DebugNotifier(Notifier):
         return amount
 
 
+# deprecated
 class HttpPostNotifier(Notifier):
     """
     Will send a http post request to a configured url.
@@ -164,6 +165,30 @@ class HttpPostNotifier(Notifier):
 
             return amount
 
+
+class EventNotifier(Notifier):
+    """
+    A notifier setting an event when resources are available
+    """
+
+    type = "event"
+
+    def __init__(self, config: dict):
+        super().__init__(config)
+
+        self._event: asyncio.Event = config.get("event")
+
+    async def notify(self, amount: int, consumer_id: str):
+        """
+        Sets the internal event to notify whatever is waiting for the event
+
+        Will ignore everything else
+
+        :param amount: The amount available
+        :param consumer_id: The id of the consumer.
+        """
+
+        self._event.set()
 
 notifier_classes = {cls.type: cls for cls in Notifier.__subclasses__() if cls.type}
 

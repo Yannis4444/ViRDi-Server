@@ -4,6 +4,7 @@ import logging
 import grpc
 import uuid
 
+from app.services.notify import EventNotifier
 from app.services.prosumer import Consumer, Resource
 
 logger = logging.getLogger(__name__)
@@ -80,31 +81,49 @@ class Client:
 
         return await resource.add(amount)
 
-    async def handle_consumer_add(
+    async def add_consumer(
             self,
             consumer_id: str,
-            resource_id: str
+            resource: Resource,
+            max_rate: int,
+            event: asyncio.Event,
     ):
         """
-        Adds a consumer for this client
+        Adds a consumer for this client.
 
         :param consumer_id: The id for the consumer to add
-        :param resource_id: The id for the resource the consumer consumes
+        :param resource: The resource the consumer consumes
+        :param max_rate: The maximum rate the consumer can consume
+        :param event: The event to set when resources are available
+        :raises: ValueError if the consumer already exists
         """
 
-        logger.info(f"Adding consumer {consumer_id} for resource {resource_id} to client {self}")
+        logger.info(f"Adding consumer {consumer_id} for {resource} to client {self}")
 
-        resource = Resource.get(resource_id)
+        if Consumer.get(consumer_id) is not None:
+            raise ValueError(f"New consumer {consumer_id} for client {self} already exists")
 
-        if resource is None:
-            logger.error(f"Resource {resource_id} not found for new consumer {consumer_id} in client {self}")
-            raise ValueError(f"Resource {resource_id} not found for new consumer {consumer_id}")
-
-        consumer = Consumer.get(consumer_id)
-        if consumer is not None:
-            logger.warning(f"New consumer {consumer_id} for client {self} already exists")
-        else:
-            # TODO: notifier
-            consumer = await Consumer.create(consumer_id, resource)
+        consumer = await Consumer.create(
+            consumer_id,
+            resource,
+            max_rate=max_rate,
+            notifier=EventNotifier(dict(event=event))
+        )
 
         self._consumers[consumer_id] = consumer
+
+        return consumer
+
+    async def remove_consumer(
+            self,
+            consumer_id: str
+    ):
+        """
+        Removes a consumer from the client and deletes the consumer.
+
+        :param consumer_id: The id of the consumer
+        """
+
+        del self._consumers[consumer_id]
+
+        # TODO: destroy the consumer

@@ -44,6 +44,11 @@ class VirdiStub(object):
                 request_serializer=virdi__pb2.ResourceProduction.SerializeToString,
                 response_deserializer=virdi__pb2.ProductionResponse.FromString,
                 _registered_method=True)
+        self.Consume = channel.unary_stream(
+                '/Virdi/Consume',
+                request_serializer=virdi__pb2.ConsumptionRequest.SerializeToString,
+                response_deserializer=virdi__pb2.ResourceConsumption.FromString,
+                _registered_method=True)
 
 
 class VirdiServicer(object):
@@ -53,7 +58,7 @@ class VirdiServicer(object):
         """Client offers a resource
         Server registers the client as a possible producer of the resource
         Sent by the client when first creating a producer for a resource / connecting to the server
-        The server sends a message whenever it needs the resource
+        Server sends a message whenever it needs the resource
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -61,7 +66,18 @@ class VirdiServicer(object):
 
     def Produce(self, request_iterator, context):
         """Client streams a resource until the server cancels
-        The server requests this using the ProductionRequest stream in OfferProduction
+        Server requests this using the ProductionRequest stream in OfferProduction
+        Server can signal full buffer and stop production by aborting with RESOURCE_EXHAUSTED
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Consume(self, request, context):
+        """Client requests a resource for one of its consumers
+        Client can open this multiple times for multiple resources and consumers
+        Server sends resources as a stream
+        Client can stop the resource stream by canceling with RESOURCE_EXHAUSTED
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -79,6 +95,11 @@ def add_VirdiServicer_to_server(servicer, server):
                     servicer.Produce,
                     request_deserializer=virdi__pb2.ResourceProduction.FromString,
                     response_serializer=virdi__pb2.ProductionResponse.SerializeToString,
+            ),
+            'Consume': grpc.unary_stream_rpc_method_handler(
+                    servicer.Consume,
+                    request_deserializer=virdi__pb2.ConsumptionRequest.FromString,
+                    response_serializer=virdi__pb2.ResourceConsumption.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -135,6 +156,33 @@ class Virdi(object):
             '/Virdi/Produce',
             virdi__pb2.ResourceProduction.SerializeToString,
             virdi__pb2.ProductionResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Consume(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/Virdi/Consume',
+            virdi__pb2.ConsumptionRequest.SerializeToString,
+            virdi__pb2.ResourceConsumption.FromString,
             options,
             channel_credentials,
             insecure,

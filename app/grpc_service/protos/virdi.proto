@@ -4,12 +4,19 @@ service Virdi {
   // Client offers a resource
   // Server registers the client as a possible producer of the resource
   // Sent by the client when first creating a producer for a resource / connecting to the server
-  // The server sends a message whenever it needs the resource
+  // Server sends a message whenever it needs the resource
   rpc OfferProduction (ProductionOffer) returns (stream ProductionRequest);
 
   // Client streams a resource until the server cancels
-  // The server requests this using the ProductionRequest stream in OfferProduction
+  // Server requests this using the ProductionRequest stream in OfferProduction
+  // Server can signal full buffer and stop production by aborting with RESOURCE_EXHAUSTED
   rpc Produce (stream ResourceProduction) returns (ProductionResponse);
+
+  // Client requests a resource for one of its consumers
+  // Client can open this multiple times for multiple resources and consumers
+  // Server sends resources as a stream
+  // Client can stop the resource stream by canceling with RESOURCE_EXHAUSTED
+  rpc Consume (ConsumptionRequest) returns (stream ResourceConsumption);
 }
 
 message ProductionOffer {
@@ -31,4 +38,18 @@ message ResourceProductionInitInfo {
 }
 
 message ProductionResponse {
+}
+
+message ConsumptionRequest {
+  string consumer_id = 1;
+  string resource_id = 2;
+  uint32 max_rate = 3;
+}
+
+message ResourceConsumption {
+  uint32 amount = 2;
+}
+
+message ResourceConsumptionInitInfo {
+  string resource_id = 1;
 }

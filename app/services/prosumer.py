@@ -92,6 +92,16 @@ class Resource:
 
         return self._id
 
+    @property
+    def buffer(self) -> Buffer:
+        """
+        The internally used buffer
+
+        :return: The buffer
+        """
+
+        return self._buffer
+
     async def add_consumer(self, consumer: 'Consumer'):
         """
         Adds the given consumer to be considered when producing.
@@ -109,8 +119,8 @@ class Resource:
         # give it whatever is in the global resource buffer
         if self._buffer.amount > 0:
             async with self._buffer.lock:
-                added = await consumer.add(self._buffer.amount)
-                await self._buffer.remove(added, lock=False)
+                await consumer.add(self._buffer.amount)
+                await self._buffer.remove(consumer.buffer.amount, lock=False)
             asyncio.create_task(consumer.notify())
 
     async def add(self, amount) -> bool:
@@ -125,12 +135,14 @@ class Resource:
         :return: True as long as ViRDi still needs the resource
         """
 
-        distributed_amount, affected_consumers = await Consumer.distribute(amount, list(self._consumers), self._buffer)
+        # TODO: rework distribute for new return logic
+        keep_coming, affected_consumers = await Consumer.distribute(amount, list(self._consumers), self._buffer)
 
         for consumer in affected_consumers:
+            # TODO: just notify, no create task, remove deprecated notifiers
             asyncio.create_task(consumer.notify())
 
-        return distributed_amount
+        return keep_coming
 
     async def remove(self, amount, lock=True) -> int:
         """
@@ -183,7 +195,7 @@ class Consumer:
     _consumer_creation_lock = asyncio.Lock()
 
     @staticmethod
-    async def distribute(amount: int, consumers: list['Consumer'], remainder_buffer: Buffer | None = None) -> tuple[int, set['Consumer']]:
+    async def distribute(amount: int, consumers: list['Consumer'], remainder_buffer: Buffer | None = None) -> tuple[bool, set['Consumer']]:
         """
         Distributes the given amount to the given consumers.
         Any remainder will be put into the remainder buffer.
@@ -193,11 +205,11 @@ class Consumer:
         :param amount: The amount to distribute
         :param consumers: The consumers to distribute to first
         :param remainder_buffer: The buffer to put into if anything is remaining
-        :return: The amount actually put into consumers and the affected consumers (not including remainder buffer)
+        :return: A bool signaling if the buffers can receive more and the affected consumers (not including remainder buffer)
         """
 
         # shuffle consumers
-        distributable = consumers[:]
+        distributable: list[Consumer] = consumers[:]
         random.shuffle(distributable)
 
         affected_consumers: set[Consumer] = set()
@@ -215,7 +227,9 @@ class Consumer:
 
                 for i, consumer in enumerate(distributable):
                     amount_to_add = amount_per_consumer + (1 if i < n_consumers_additional_resource else 0)
-                    actual_amount = await consumer.add(amount_to_add, lock=False)
+
+                    actual_amount = min(consumer.buffer.limit - consumer.buffer.amount, amount_to_add)
+                    await consumer.buffer.add(actual_amount, lock=False)
 
                     if actual_amount > 0:
                         affected_consumers.add(consumer)
@@ -232,9 +246,11 @@ class Consumer:
                 consumer._buffer.lock.release()
 
         if remaining and remainder_buffer is not None:
-            remaining -= await remainder_buffer.add(remaining)
-
-        return amount - remaining, affected_consumers
+            # there is stuff remaining for the global buffer
+            return await remainder_buffer.add(remaining), affected_consumers
+        else:
+            # not even touching the global buffer - more can be taken
+            return True, affected_consumers
 
     @classmethod
     def get(cls, consumer_id) -> 'Consumer | None':
@@ -249,7 +265,7 @@ class Consumer:
         return cls._consumers.get(consumer_id)
 
     @classmethod
-    async def create(cls, consumer_id, resource: Resource, buffer_limit: int = 100, initial_buffer_amount: int = 0, notifier: Notifier | None = None) -> 'Consumer':
+    async def create(cls, consumer_id, resource: Resource, buffer_limit: int = 100, initial_buffer_amount: int = 0, max_rate: int | None = None, notifier: Notifier | None = None) -> 'Consumer':
         """
         Creates the consumer with the given id and adds it to the resource.
         Should always be used to create any consumer.
@@ -260,9 +276,12 @@ class Consumer:
         :param resource: The resource this consumer consumes.
         :param buffer_limit: The maximum amount of the resource that can be stored at once.
         :param initial_buffer_amount: The buffer amount to start with.
+        :param max_rate: The maximum rate the consumer can consume at (1/min).
         :param notifier: A notifier to be used when new resources become available.
         :return: The new consumer
         """
+
+        # TODO: use max rate
 
         logger.info(f"Creating Consumer '{consumer_id}' for '{resource}' with {notifier if notifier else 'no notifier'}")
 
@@ -320,6 +339,16 @@ class Consumer:
         return self._resource
 
     @property
+    def buffer(self) -> Buffer:
+        """
+        The buffer the consumer is using
+
+        :return: The buffer
+        """
+
+        return self._buffer
+
+    @property
     def notifier(self) -> Notifier | None:
         """
         The internally used notifier
@@ -360,6 +389,21 @@ class Consumer:
 
         return await self._buffer.remove(amount, lock)
 
+    async def remove_all(self, lock=True) -> int:
+        """
+        Works like remove but tries gets everything from the local and global buffer.
+
+        If the buffer is already locked manually, lock can be set to False.
+
+        :param lock: If the amount should be locked during the operation
+        :return: The amount actually removed
+        """
+
+        amount = await self.resource.buffer.remove_all(lock)
+        amount += await self._buffer.remove_all(lock)
+
+        return amount
+
     async def notify(self):
         """
         Notifies the actual client for the consumer of any changes made to the buffer.
@@ -379,6 +423,7 @@ class Consumer:
             async with self._notifier:
                 if self._buffer.amount > 0:
                     taken_amount = await self._notifier.notify(self._buffer.amount, self._id)
-                    actual_amount = await self.remove(taken_amount)
-                    if actual_amount < taken_amount:
-                        logger.warning(f"Notifier for {self} removed more than was available on the buffer: {actual_amount} < {taken_amount}")
+                    if taken_amount is not None:
+                        actual_amount = await self.remove(taken_amount)
+                        if actual_amount < taken_amount:
+                            logger.warning(f"Notifier for {self} removed more than was available on the buffer: {actual_amount} < {taken_amount}")

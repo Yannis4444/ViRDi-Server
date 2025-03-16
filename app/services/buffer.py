@@ -73,10 +73,10 @@ class Buffer:
         if lock:
             async with self._lock:
                 self._amount += amount
-                return self._amount <= self._limit
+                return self._amount < self._limit
         else:
             self._amount += amount
-            return self._amount <= self._limit
+            return self._amount < self._limit
 
     async def remove(self, amount, lock=True) -> int:
         """
@@ -111,7 +111,7 @@ class Buffer:
         """
 
         if lock:
-            with self._lock:
+            async with self._lock:
                 return await self.remove(self.amount, lock=False)
         else:
             return await self.remove(self.amount, lock=False)

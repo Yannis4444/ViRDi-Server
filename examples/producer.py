@@ -10,10 +10,10 @@ import app.grpc_service.proto.virdi_pb2_grpc as virdi_pb2_grpc
 
 def get_args():
     """Parses command-line arguments."""
-    parser = argparse.ArgumentParser(description="gRPC Client for Virdi Service")
-    parser.add_argument("--client_id", type=str, default=str(uuid.uuid4()),
+    parser = argparse.ArgumentParser(description="gRPC Producer Client for ViRDi")
+    parser.add_argument("--client-id", type=str, default=str(uuid.uuid4()),
                         help="Optional client ID. Defaults to a random UUID.")
-    parser.add_argument("--resource_id", type=str, default="iron",
+    parser.add_argument("--resource-id", type=str, default="iron",
                         help="Resource ID to produce.")
     return parser.parse_args()
 
@@ -53,9 +53,9 @@ def main():
     stub = create_grpc_stub()
 
     print("Sending ProductionOffer")
-    response = offer_production(stub, args.resource_id, metadata)
+    call = offer_production(stub, args.resource_id, metadata)
 
-    for r in response:
+    for response in call:
         stop_production = threading.Event()
         try:
             print("Received ProductionRequest, starting production")
