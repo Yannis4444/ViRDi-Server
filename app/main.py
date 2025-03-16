@@ -7,7 +7,7 @@ from app.grpc_service.server import serve
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="[%(asctime)s] %(levelname)-8s %(name)-30s %(message)s"
 )
 
 logger = logging.getLogger("app")
