@@ -43,7 +43,9 @@ message ProductionResponse {
 message ConsumptionRequest {
   string consumer_id = 1;
   string resource_id = 2;
-  uint32 max_rate = 3;
+  uint32 buffer_limit = 3; // buffer on the client side; expected to store at least half a minute of sending with max_rate (default=max_rate)
+  uint32 current_buffer_amount = 4; // how much the buffer is currently filled (default=0)
+  uint32 max_rate = 5; // maximum rate in 1/min
 }
 
 message ResourceConsumption {

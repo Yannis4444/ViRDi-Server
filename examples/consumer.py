@@ -50,10 +50,17 @@ def main():
     call = request_consumption(stub, args.consumer_id, args.resource_id, args.max_rate, metadata)
 
     amount = 0
+    first_amount = None
+    start_time = None
 
     for response in call:
         amount += response.amount
-        print(amount)
+        if first_amount is None:
+            first_amount = amount
+            start_time = time.time()
+            print(f"received {response.amount}")
+        else:
+            print(f"received {response.amount}; got {amount} total; overall rate: {((amount - first_amount) / ((time.time() - start_time) / 60)):.2f}/min")
 
 
 if __name__ == "__main__":

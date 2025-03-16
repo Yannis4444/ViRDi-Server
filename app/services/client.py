@@ -85,6 +85,7 @@ class Client:
             self,
             consumer_id: str,
             resource: Resource,
+            buffer_limit: int,
             max_rate: int,
             event: asyncio.Event,
     ):
@@ -93,6 +94,7 @@ class Client:
 
         :param consumer_id: The id for the consumer to add
         :param resource: The resource the consumer consumes
+        :param buffer_limit: The maximum amount of the resource that can be stored in the consumer's buffer.
         :param max_rate: The maximum rate the consumer can consume
         :param event: The event to set when resources are available
         :raises: ValueError if the consumer already exists
@@ -106,6 +108,7 @@ class Client:
         consumer = await Consumer.create(
             consumer_id,
             resource,
+            buffer_limit=buffer_limit,
             max_rate=max_rate,
             notifier=EventNotifier(dict(event=event))
         )

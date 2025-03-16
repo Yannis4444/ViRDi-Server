@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import math
+import time
 from typing import AsyncIterator
 
 import grpc
@@ -27,6 +29,28 @@ async def get_client_from_context(context: grpc.ServicerContext) -> Client | Non
         return None
 
     return await Client.get(client_id)
+
+
+def calculate_time_until_buffer_at_25(
+        state_time: float,
+        buffer_amount: float,
+        buffer_limit: int,
+        rate: int
+) -> float:
+    """
+    Calculates the time until the buffer falls to 25% filling level.
+
+    :param state_time: The time that the last_buffer_amount was calculated at
+    :param buffer_amount: The amount in the buffer at the last time
+    :param buffer_limit: The limit of the buffer
+    :param rate: The rate the buffer is filled at (1/min)
+    :return: The time until the buffer falls to 25% filling level in seconds or 0 if the buffer is already below 25%
+    """
+
+    buffer_25 = 0.25 * buffer_limit
+    total_time_until_25 = (buffer_amount - buffer_25) / rate * 60
+    time_until_25 = (state_time + total_time_until_25) - time.time()
+    return max(time_until_25, 0.0)
 
 
 class MyServiceServicer(pb2_grpc.VirdiServicer):
@@ -102,13 +126,24 @@ class MyServiceServicer(pb2_grpc.VirdiServicer):
     async def Consume(self, request: pb2.ConsumptionRequest, context: grpc.ServicerContext) -> AsyncIterator[pb2.ResourceConsumption]:
         """
         A client requests resources, the server sends them in a stream.
+
+        By default, the server sends resources once every 10 seconds.
+        If the buffer gets emptied, the server waits for new resources to restart sending.
+
+        The Server aims to always fill the buffer to about 75% when it falls below 25%.
+
+        The local buffer for the consumer is set to the same size as the client's.
         """
+
+        last_state_time = time.time()
 
         client = await get_client_from_context(context)
         if client is None:
             logging.error("Received consumption request with missing or unknown client id")
             await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Client not found or not given")
 
+        buffer_limit = request.buffer_limit or request.max_rate
+        assumed_client_buffer_amount = float(request.current_buffer_amount) or 0.0
         max_rate = request.max_rate
 
         resource = Resource.get(request.resource_id)
@@ -118,7 +153,7 @@ class MyServiceServicer(pb2_grpc.VirdiServicer):
 
         event = asyncio.Event()
         try:
-            consumer = await client.add_consumer(request.consumer_id, resource, max_rate, event)
+            consumer = await client.add_consumer(request.consumer_id, resource, buffer_limit, max_rate, event)
         except ValueError as e:
             logging.error(f"Failed to add consumer for consumption request for {resource} from {client}: {e}")
             await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Failed to add consumer: {e}")
@@ -130,16 +165,33 @@ class MyServiceServicer(pb2_grpc.VirdiServicer):
 
         try:
             while True:
-                await event.wait()
+                # calculate how much should currently be in the client buffer
+                t = time.time()
+                assumed_client_buffer_amount -= ((t - last_state_time) / 60) * max_rate
+                assumed_client_buffer_amount = max(assumed_client_buffer_amount, 0)
+                last_state_time = t
 
-                # TODO: use max_rate here?
-                # TODO: how much to take?
-                amount = await consumer.remove_all()
+                # wait until the client buffer drops below 25%
+                await asyncio.sleep(calculate_time_until_buffer_at_25(
+                    last_state_time,
+                    assumed_client_buffer_amount,
+                    buffer_limit,
+                    max_rate
+                ))
+
+                # try to fill client buffer up to 75% (assuming currently at 25%)
+                amount_to_75 = buffer_limit * 0.75 - max(assumed_client_buffer_amount - ((time.time() - last_state_time) / 60) * max_rate, 0)
+                amount = await consumer.remove(round(amount_to_75))
+                assumed_client_buffer_amount += amount
 
                 if amount > 0:
+                    # Send the amount to the client
                     yield virdi_pb2.ResourceProduction(amount=amount)
-
-                event.clear()
+                else:
+                    # Wait until resources are available once more
+                    await event.wait()
+                    event.clear()
         finally:
+            # TODO: different logic for consumer is full (keep buffer) and consumer is removed (remove buffer)
             logger.info(f"Stopping sending {resource} to client {client} for consumer {consumer}")
             await client.remove_consumer(consumer.id)

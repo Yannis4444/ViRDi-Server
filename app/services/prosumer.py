@@ -287,17 +287,15 @@ class Consumer:
         :return: The new consumer
         """
 
-        # TODO: use max rate
-
         logger.info(f"Creating consumer '{consumer_id}' for {resource} with {notifier if notifier else 'no notifier'}")
 
         async with cls._consumer_creation_lock:
-            consumer = cls(consumer_id, resource, buffer_limit, initial_buffer_amount=initial_buffer_amount, notifier=notifier)
+            consumer = cls(consumer_id, resource, buffer_limit, initial_buffer_amount=initial_buffer_amount, max_rate=max_rate, notifier=notifier)
             await resource.add_consumer(consumer)
             cls._consumers[consumer_id] = consumer
             return consumer
 
-    def __init__(self, consumer_id: str, resource: Resource, buffer_limit: int, initial_buffer_amount: int = 0, notifier: Notifier | None = None):
+    def __init__(self, consumer_id: str, resource: Resource, buffer_limit: int, initial_buffer_amount: int = 0, max_rate: int | None = None, notifier: Notifier | None = None):
         """
         Creates a new consumer
 
@@ -308,14 +306,14 @@ class Consumer:
         :param resource: The resource this consumer consumes.
         :param buffer_limit: The maximum amount of the resource that can be stored at once.
         :param initial_buffer_amount: The buffer amount to start with.
+        :param max_rate: The maximum rate the consumer can consume at (1/min).
         :param notifier: A notifier to be used when new resources become available.
         """
 
         self._id = consumer_id
         self._resource = resource
-
         self._buffer = Buffer(buffer_limit, initial_buffer_amount)
-
+        self._max_rate = max_rate
         self._notifier = notifier
 
     async def delete(self):
@@ -402,9 +400,10 @@ class Consumer:
         :return: The amount actually removed
         """
 
-        amount -= await self.resource.remove(amount, lock)
+        actual_amount = await self.resource.remove(amount, lock)
+        actual_amount += await self._buffer.remove(amount - actual_amount, lock)
 
-        return await self._buffer.remove(amount, lock)
+        return actual_amount
 
     async def remove_all(self, lock=True) -> int:
         """
