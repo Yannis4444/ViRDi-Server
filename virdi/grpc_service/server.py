@@ -1,8 +1,8 @@
 import logging
 
 import grpc
-import app.grpc_service.proto.virdi_pb2_grpc as pb2_grpc
-from app.grpc_service.service import MyServiceServicer
+import virdi.grpc_service.proto.virdi_pb2_grpc as pb2_grpc
+from virdi.grpc_service.service import MyServiceServicer
 
 logger = logging.getLogger(__name__)
 

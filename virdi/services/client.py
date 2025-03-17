@@ -4,8 +4,8 @@ import logging
 import grpc
 import uuid
 
-from app.services.notify import EventNotifier
-from app.services.prosumer import Consumer, Resource
+from virdi.services.notify import EventNotifier
+from virdi.services.prosumer import Consumer, Resource
 
 logger = logging.getLogger(__name__)
 

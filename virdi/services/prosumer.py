@@ -2,8 +2,8 @@ import asyncio
 import logging
 import random
 
-from app.services.buffer import Buffer
-from app.services.notify import Notifier
+from virdi.services.buffer import Buffer
+from virdi.services.notify import Notifier
 
 logger = logging.getLogger(__name__)
 

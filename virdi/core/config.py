@@ -2,9 +2,9 @@ from pathlib import Path
 
 import yaml
 
-from app.api.endpoints.resources import logger
-from app.services.prosumer import Resource
-from app.services.resource_mapping import ResourceMapping
+from virdi.api.endpoints.resources import logger
+from virdi.services.prosumer import Resource
+from virdi.services.resource_mapping import ResourceMapping
 
 
 def _deep_merge(dict1: dict[str, any], dict2: dict[str, any]) -> dict[str, any]:

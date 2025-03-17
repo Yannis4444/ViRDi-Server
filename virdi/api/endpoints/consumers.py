@@ -2,9 +2,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.schemas.consumers import ConsumerCreated
-from app.services.notify import get_notifier_class
-from app.services.prosumer import Consumer, Resource
+from virdi.api.schemas.consumers import ConsumerCreated
+from virdi.services.notify import get_notifier_class
+from virdi.services.prosumer import Consumer, Resource
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

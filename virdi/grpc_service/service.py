@@ -1,16 +1,15 @@
 import asyncio
 import logging
-import math
 import time
 from typing import AsyncIterator
 
 import grpc
 
-import app.grpc_service.proto.virdi_pb2 as pb2
-import app.grpc_service.proto.virdi_pb2_grpc as pb2_grpc
-from app.grpc_service.proto import virdi_pb2
-from app.services.client import Client
-from app.services.prosumer import Resource, Consumer
+import virdi.grpc_service.proto.virdi_pb2 as pb2
+import virdi.grpc_service.proto.virdi_pb2_grpc as pb2_grpc
+from virdi.grpc_service.proto import virdi_pb2
+from virdi.services.client import Client
+from virdi.services.prosumer import Resource, Consumer
 
 logger = logging.getLogger(__name__)
 

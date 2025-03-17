@@ -3,7 +3,7 @@
 The communication between clients and the server is handled using **gRPC**,
 enabling efficient, bidirectional streaming and request-response interactions.
 
-The actual proto file can be found [here](../app/grpc_service/protos/virdi.proto)
+The actual proto file can be found [here](../virdi/grpc_service/protos/virdi.proto)
 
 ### **What’s Covered in This Section?**
 - **Overview of gRPC Services**: Explanation of how clients and the server communicate.

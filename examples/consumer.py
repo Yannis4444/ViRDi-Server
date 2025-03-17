@@ -4,8 +4,8 @@ import uuid
 import grpc
 import argparse
 
-import app.grpc_service.proto.virdi_pb2 as virdi_pb2
-import app.grpc_service.proto.virdi_pb2_grpc as virdi_pb2_grpc
+import virdi.grpc_service.proto.virdi_pb2 as virdi_pb2
+import virdi.grpc_service.proto.virdi_pb2_grpc as virdi_pb2_grpc
 
 
 def get_args():

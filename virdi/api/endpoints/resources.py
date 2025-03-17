@@ -2,8 +2,8 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.schemas.resources import ResourceProduced, ResourceConsumed, ProduceResource
-from app.services.prosumer import Consumer, Resource
+from virdi.api.schemas.resources import ResourceProduced, ResourceConsumed, ProduceResource
+from virdi.services.prosumer import Consumer, Resource
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

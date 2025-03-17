@@ -1,6 +1,6 @@
 import logging
 
-from app.services.prosumer import Resource
+from virdi.services.prosumer import Resource
 
 logger = logging.getLogger(__name__)
 

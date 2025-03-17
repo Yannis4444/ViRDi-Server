@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-import app.grpc_service.proto.virdi_pb2 as virdi__pb2
+import virdi.grpc_service.proto.virdi_pb2 as virdi__pb2
 
 GRPC_GENERATED_VERSION = '1.71.0'
 GRPC_VERSION = grpc.__version__

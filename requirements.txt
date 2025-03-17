@@ -5,3 +5,4 @@ httpx==0.28.1
 grpcio==1.71.0
 grpcio-tools==1.71.0
 grpcio-status==1.71.0
+influxdb-client==1.48.0
