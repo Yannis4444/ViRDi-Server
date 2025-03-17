@@ -1,6 +1,13 @@
 # Use official Python image
 FROM python:3.13-alpine
 
+ENV PYTHONUNBUFFERED=1
+
+ENV INFLUXDB_URL=http://influxdb:8086 \
+    INFLUXDB_TOKEN="" \
+    INFLUXDB_ORG=virdi \
+    INFLUXDB_BUCKET=virdi_metrics
+
 # Set working directory
 WORKDIR /app
 

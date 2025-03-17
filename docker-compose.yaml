@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=virdi_metrics
+      - INFLUXDB_ORG=virdi
+      - INFLUXDB_BUCKET=virdi_metrics
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=adminpassword
+      - INFLUXDB_TOKEN=super_secret_token
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+
+  chronograf:
+    image: chronograf:latest
+    container_name: chronograf
+    ports:
+      - "8888:8888"
+    depends_on:
+      - influxdb
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+    restart: unless-stopped
+
+  virdi:
+    build: .
+    container_name: virdi
+    depends_on:
+      - influxdb
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=super_secret_token
+      - INFLUXDB_ORG=virdi
+      - INFLUXDB_BUCKET=virdi_metrics
+    restart: unless-stopped
+
+volumes:
+  influxdb-data:
