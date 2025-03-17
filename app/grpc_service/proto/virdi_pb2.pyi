@@ -33,18 +33,18 @@ class ProductionResponse(_message.Message):
     def __init__(self) -> None: ...
 
 class ConsumptionRequest(_message.Message):
-    __slots__ = ("consumer_id", "resource_id", "max_rate", "buffer_limit", "current_buffer_amount")
+    __slots__ = ("consumer_id", "resource_id", "max_rate", "current_buffer_amount", "buffer_limit")
     CONSUMER_ID_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_ID_FIELD_NUMBER: _ClassVar[int]
     MAX_RATE_FIELD_NUMBER: _ClassVar[int]
-    BUFFER_LIMIT_FIELD_NUMBER: _ClassVar[int]
     CURRENT_BUFFER_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    BUFFER_LIMIT_FIELD_NUMBER: _ClassVar[int]
     consumer_id: str
     resource_id: str
     max_rate: int
-    buffer_limit: int
     current_buffer_amount: int
-    def __init__(self, consumer_id: _Optional[str] = ..., resource_id: _Optional[str] = ..., max_rate: _Optional[int] = ..., buffer_limit: _Optional[int] = ..., current_buffer_amount: _Optional[int] = ...) -> None: ...
+    buffer_limit: int
+    def __init__(self, consumer_id: _Optional[str] = ..., resource_id: _Optional[str] = ..., max_rate: _Optional[int] = ..., current_buffer_amount: _Optional[int] = ..., buffer_limit: _Optional[int] = ...) -> None: ...
 
 class ResourceConsumption(_message.Message):
     __slots__ = ("amount",)
