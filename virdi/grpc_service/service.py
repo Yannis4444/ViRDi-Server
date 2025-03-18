@@ -8,6 +8,7 @@ import grpc
 import virdi.grpc_service.proto.virdi_pb2 as pb2
 import virdi.grpc_service.proto.virdi_pb2_grpc as pb2_grpc
 from virdi.grpc_service.proto import virdi_pb2
+from virdi.metrics.metrics import production_metric
 from virdi.services.client import Client
 from virdi.services.prosumer import Resource, Consumer
 
@@ -110,8 +111,15 @@ class MyServiceServicer(pb2_grpc.VirdiServicer):
 
         async for request in request_iterator:
             amount = request.amount
+            continue_production = await client.handle_resource_production(resource, amount)
 
-            if not await client.handle_resource_production(resource, amount):
+            await production_metric(
+                client.id,
+                resource_id,
+                amount
+            )
+
+            if not continue_production:
                 # buffer filled
                 logger.info(f"Stopping client {client} from sending more {resource}")
                 await context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, f"Buffer full, stop sending")

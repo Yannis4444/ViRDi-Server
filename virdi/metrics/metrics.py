@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import time
+from datetime import datetime, timezone
 
 from influxdb_client.client.influxdb_client_async import InfluxDBClientAsync
 
@@ -18,6 +19,32 @@ async def enqueue_metric(measurement: str, tags: dict, fields: dict):
     await _metrics_queue.put((measurement, tags, fields))
 
 
+async def production_metric(
+        client_id: str,
+        resource_id: str,
+        amount: int
+):
+    """
+    Adds a production metric
+
+    :param client_id: The identifier of the client
+    :param resource_id: The identifier of the resource
+    :param amount: The amount produced
+    """
+
+    await _metrics_queue.put({
+        "measurement": "production",
+        "tags": {
+            "client_id": client_id,
+            "resource_id": resource_id,
+        },
+        "fields": {
+            "amount": amount
+        },
+        "time": datetime.fromtimestamp(time.time(), tz=timezone.utc).isoformat()
+    })
+
+
 async def write_metrics():
     """Background task to consume queue and write metrics in batches."""
 
@@ -30,7 +57,7 @@ async def write_metrics():
     batch_size = int(os.getenv("METRICS_BATCH_SIZE", 500))
 
     logger.info("Starting writing metrics...")
-    async with InfluxDBClientAsync(url=influx_url, token=influx_token, org=influx_org, enable_gzip=True) as client:
+    async with InfluxDBClientAsync(url=influx_url, token=influx_token, org=influx_org, enable_gzip=True, username="admin") as client:
         write_api = client.write_api()
         batch = []
         last_write = time.time()
@@ -45,9 +72,13 @@ async def write_metrics():
 
                 if len(batch) >= batch_size or (last_write + flush_interval) <= time.time():
                     logger.debug("Writing metrics")
-                    await write_api.write(influx_bucket, influx_org, batch)
-                    batch.clear()
-                    last_write = time.time()
+                    try:
+                        await write_api.write(influx_bucket, influx_org, batch)
+                        batch.clear()
+                        last_write = time.time()
+                    except:
+                        logger.exception("Error writing metrics")
+                        await asyncio.sleep(10)
             except asyncio.TimeoutError:
                 logger.info("Stopping writing metrics")
                 if batch:

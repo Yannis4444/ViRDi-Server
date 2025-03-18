@@ -1,3 +1,4 @@
+import random
 import threading
 import time
 import uuid
@@ -40,7 +41,7 @@ def produce_resources(resource_id, stop_production: threading.Event):
     try:
         while not stop_production.is_set():
             print("Sending ResourceProduction")
-            yield virdi_pb2.ResourceProduction(amount=10)
+            yield virdi_pb2.ResourceProduction(amount=random.randint(1, 10))
             time.sleep(1)
     finally:
         print("Closing ResourceProduction")
