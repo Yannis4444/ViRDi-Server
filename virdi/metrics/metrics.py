@@ -14,11 +14,6 @@ _metrics_queue = asyncio.Queue()
 metrics_shutdown_event = asyncio.Event()
 
 
-async def enqueue_metric(measurement: str, tags: dict, fields: dict):
-    """Push a metric to the queue."""
-    await _metrics_queue.put((measurement, tags, fields))
-
-
 async def production_metric(
         client_id: str,
         resource_id: str,
@@ -36,6 +31,35 @@ async def production_metric(
         "measurement": "production",
         "tags": {
             "client_id": client_id,
+            "resource_id": resource_id,
+        },
+        "fields": {
+            "amount": amount
+        },
+        "time": datetime.fromtimestamp(time.time(), tz=timezone.utc).isoformat()
+    })
+
+
+async def consumption_metric(
+        client_id: str,
+        consumer_id: str,
+        resource_id: str,
+        amount: int
+):
+    """
+    Adds a production metric
+
+    :param client_id: The identifier of the client
+    :param consumer_id: The identifier of the consumer
+    :param resource_id: The identifier of the resource
+    :param amount: The amount produced
+    """
+
+    await _metrics_queue.put({
+        "measurement": "consumption",
+        "tags": {
+            "client_id": client_id,
+            "consumer_id": consumer_id,
             "resource_id": resource_id,
         },
         "fields": {

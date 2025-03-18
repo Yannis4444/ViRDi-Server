@@ -8,9 +8,9 @@ import grpc
 import virdi.grpc_service.proto.virdi_pb2 as pb2
 import virdi.grpc_service.proto.virdi_pb2_grpc as pb2_grpc
 from virdi.grpc_service.proto import virdi_pb2
-from virdi.metrics.metrics import production_metric
+from virdi.metrics.metrics import production_metric, consumption_metric
 from virdi.services.client import Client
-from virdi.services.prosumer import Resource, Consumer
+from virdi.services.prosumer import Resource
 
 logger = logging.getLogger(__name__)
 
@@ -111,13 +111,14 @@ class MyServiceServicer(pb2_grpc.VirdiServicer):
 
         async for request in request_iterator:
             amount = request.amount
-            continue_production = await client.handle_resource_production(resource, amount)
 
             await production_metric(
                 client.id,
                 resource_id,
                 amount
             )
+
+            continue_production = await client.handle_resource_production(resource, amount)
 
             if not continue_production:
                 # buffer filled
@@ -193,6 +194,13 @@ class MyServiceServicer(pb2_grpc.VirdiServicer):
 
                 if amount > 0:
                     # Send the amount to the client
+                    await consumption_metric(
+                        client.id,
+                        consumer.id,
+                        resource.id,
+                        amount
+                    )
+
                     yield virdi_pb2.ResourceProduction(amount=amount)
                 else:
                     # Wait until resources are available once more
